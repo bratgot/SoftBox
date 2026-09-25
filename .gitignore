@@ -24,3 +24,6 @@ Thumbs.db
 .DS_Store
 build-*/
 dist/
+test/out/
+*.nk~
+*.autosave

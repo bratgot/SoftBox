@@ -1,0 +1,170 @@
+#! C:/Program Files/Nuke17.1v1/nuke-17.1.1.dll -nx
+version 17.1 v1
+define_window_layout_xml {<?xml version="1.0" encoding="UTF-8"?>
+<layout version="1.0">
+    <window x="2" y="14" w="1701" h="892" screen="0">
+        <splitter orientation="1">
+            <split size="40"/>
+            <dock id="" hideTitles="1" activePageId="Toolbar.1">
+                <page id="Toolbar.1"/>
+            </dock>
+            <split size="1038" stretch="1"/>
+            <splitter orientation="2">
+                <split size="498"/>
+                <dock id="" activePageId="Viewer.1">
+                    <page id="Viewer.1"/>
+                </dock>
+                <split size="351"/>
+                <dock id="" activePageId="DAG.1" focus="true">
+                    <page id="DAG.1"/>
+                    <page id="Curve Editor.1"/>
+                    <page id="DopeSheet.1"/>
+                </dock>
+            </splitter>
+            <split size="615"/>
+            <dock id="" activePageId="Properties.1">
+                <page id="Properties.1"/>
+                <page id="uk.co.thefoundry.backgroundrenderview.1"/>
+                <page id="Scenegraph.1"/>
+                <page id="uk.co.thefoundry.scripteditor.2"/>
+            </dock>
+        </splitter>
+    </window>
+</layout>
+}
+Root {
+ inputs 0
+ name C:/dev/SoftBox/test/soft_shadow_test.nk
+ format "960 540 0 0 960 540 1 softshadow_test"
+ proxy_type scale
+ proxy_format "1024 778 0 0 1024 778 1 1K_Super_35(full-ap)"
+ colorManagement Nuke
+ workingSpaceLUT linear
+ monitorLut sRGB
+ monitorOutLUT rec709
+ int8Lut linear
+ int16Lut linear
+ logLut linear
+ floatLut linear
+}
+StickyNote {
+ inputs 0
+ name StickyNote1
+ label "Soft shadow test (Nuke 17.1)\n\nViewer 1 = A: built-in GeoDiskLight (radius 1)\nViewer 2 = B: SoftBox AreaLight (2x2, 16 samples)\n\nThings to try:\n- A: raise radius -> does the shadow soften?\n- A: Shadow tab softness knobs\n- Render nodes: camera samples 16, shadowing on/off\n- B: shadow_samples 1 / 16 / 64, compare render time"
+ xpos 600
+ ypos 120
+}
+Camera4 {
+ inputs 0
+ constraint_maintain_offset_frame 0
+ setAuthorMode {translate set_value}
+ translate {0.03019529209 7.199408054 9.260969162}
+ setAuthorMode {rotate set_value}
+ rotate {-37.20000035 6.600019906 0}
+ name Camera1
+ xpos -75
+ ypos 272
+}
+set N8efbf800 [stack 0]
+AreaLight {
+ inputs 0
+ translate {2 4 0}
+ rotate {-90 0 0}
+ width 2
+ height 2
+ intensity 50
+ shadow_samples 2
+ name B_SoftBoxAreaLight
+ xpos 406
+ ypos 222
+}
+GeoCard {
+ inputs 0
+ orientation ZX
+ uniform_scale 20
+ name Floor
+ xpos 0
+}
+set N55c70580 [stack 0]
+GeoSphere {
+ radius 0.5
+ translate {0 1 0}
+ name Occluder
+ xpos 150
+}
+set N55c70b00 [stack 0]
+GeoCube {
+ translate {-1.5 0.5 1}
+ name Occluder2
+ xpos 300
+}
+set N55c71080 [stack 0]
+GeoCamera {
+ translate {0 7 9}
+ rotate {-38 0 0}
+ name RenderCam
+ xpos 449
+ ypos -6
+}
+push $N55c71080
+push $N55c70b00
+push $N55c70580
+GeoMerge {
+ inputs 4
+ name Scene
+ xpos 200
+ ypos 120
+}
+set N55c71b80 [stack 0]
+GeoMerge {
+ inputs 2
+ name Scene_B
+ xpos 300
+ ypos 320
+}
+push 0
+ScanlineRender2 {
+ inputs 3
+ name Render_B_SoftBox
+ xpos 300
+ ypos 421
+}
+push $N8efbf800
+push $N55c71b80
+GeoDiskLight {
+ setAuthorMode {inputs_intensity set_value}
+ inputs_intensity 50
+ setAuthorMode {inputs_radius set_value}
+ inputs_radius 0.05
+ setAuthorMode {inputs_shaping_cone_softness set_value}
+ translate {2 4 0}
+ rotate {-90 0 0}
+ name A_BuiltinDiskLight
+ xpos 0
+ ypos 220
+}
+push $N55c71b80
+GeoMerge {
+ inputs 2
+ name Scene_A
+ xpos 100
+ ypos 319
+}
+push 0
+ScanlineRender2 {
+ inputs 3
+ name Render_A_DiskLight
+ xpos 100
+ ypos 436
+}
+Viewer {
+ inputs 2
+ frame_range 1-100
+ input_number 1
+ render_settings_schema false
+ monitorOutNDISenderName "NukeX - soft_shadow_test - Viewer1"
+ monitorOutOutputTransform rec709
+ name Viewer1
+ xpos 200
+ ypos 540
+}

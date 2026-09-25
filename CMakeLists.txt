@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(AreaLight VERSION 1.1.0 LANGUAGES CXX)
+project(AreaLight VERSION 1.2.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -59,6 +59,7 @@ target_include_directories(AreaLight PRIVATE "${NUKE_INCLUDE}")
 target_link_libraries(AreaLight PRIVATE ${NUKE_LIBS} opengl32)
 
 target_compile_definitions(AreaLight PRIVATE
+    SOFTBOX_VERSION="${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}"
     FN_OS_WINDOWS
     NOMINMAX
     _USE_MATH_DEFINES
@@ -73,10 +74,29 @@ set_target_properties(AreaLight PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/plugin"
 )
 
+# ---- ScanlineRender2 light shader for USD RectLight prims --------------------
+# Loaded by name: a RectLight's light:shaderId "RectLight" -> slrRectLight.dll
+add_library(slrRectLight MODULE slrRectLight.cpp)
+target_include_directories(slrRectLight PRIVATE "${NUKE_INCLUDE}")
+target_link_libraries(slrRectLight PRIVATE ${NUKE_LIBS} "${NUKE_DIR}/Ndk.lib")
+target_compile_definitions(slrRectLight PRIVATE
+    FN_OS_WINDOWS
+    NOMINMAX
+    _USE_MATH_DEFINES
+    WIN32_LEAN_AND_MEAN
+    _CRT_SECURE_NO_WARNINGS
+)
+set_target_properties(slrRectLight PROPERTIES
+    PREFIX ""
+    SUFFIX ".dll"
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/plugin"
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/plugin"
+)
+
 # ---- Install ----------------------------------------------------------------
 # Layout (one folder per plugin, one subfolder per Nuke minor version):
 #   <prefix>/SoftBox/init.py, menu.py, LICENSE
-#   <prefix>/SoftBox/<major.minor>/AreaLight.dll
+#   <prefix>/SoftBox/<major.minor>/AreaLight.dll, slrRectLight.dll
 # plus an idempotent nuke.pluginAddPath('./SoftBox') block in <prefix>/init.py.
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
     if(WIN32)
@@ -88,7 +108,7 @@ endif()
 
 # Component "plugin" is the SoftBox folder itself (also what cmake/package.cmake
 # stages for distribution); "register" edits the user's own init.py.
-install(TARGETS AreaLight
+install(TARGETS AreaLight slrRectLight
         RUNTIME DESTINATION "SoftBox/${NUKE_VERSION_MM}" COMPONENT plugin
         LIBRARY DESTINATION "SoftBox/${NUKE_VERSION_MM}" COMPONENT plugin)
 

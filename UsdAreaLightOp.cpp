@@ -30,7 +30,7 @@ void GeoAreaLightOp::knobs(DD::Image::Knob_Callback f)
 
     DD::Image::Float_knob(f, &_intensity, DD::Image::IRange(0.0, 100.0), "intensity", "Intensity");
     DD::Image::Tooltip(f, "Base brightness of the light.\n"
-                          "When using soft shadows this is divided equally across all sub-lights, "
+                          "In Grid mode this is divided equally across all sub-lights, "
                           "so total illumination stays constant regardless of Shadow Samples.");
     KnobModifiesAttribValues(f);
     DD::Image::Float_knob(f, &_exposure, DD::Image::IRange(-10.0, 10.0), "exposure", "Exposure");
@@ -45,67 +45,63 @@ void GeoAreaLightOp::knobs(DD::Image::Knob_Callback f)
     KnobModifiesAttribValues(f);
 
     DD::Image::Tab_knob(f, "Shadow");
+    static const char* const kShadowModes[] = {"Stochastic", "Grid", nullptr};
+    DD::Image::Enumeration_knob(f, &_shadowMode, kShadowModes, "shadow_mode", "Shadow Mode");
+    DD::Image::Tooltip(f, "Stochastic (default): one USD RectLight, shaded by SoftBox's slrRectLight "
+                          "shader. Shadow rays go to random points on the light surface, like a path "
+                          "tracer, so the penumbra is a smooth gradient that converges with more "
+                          "samples.\n\n"
+                          "Grid: the v1.0/v1.1 method, a grid of hard-shadow DiskLights. The "
+                          "penumbra is built from overlapping copies of the shadow and can band.");
+    KnobDefinesGeometry(f);
     DD::Image::Int_knob(f, &_shadowSamples, "shadow_samples", "Shadow Samples");
-    DD::Image::Tooltip(f, "Controls soft shadow quality by emitting a grid of sub-lights.\n\n"
-                          "1 = single light, hard shadows (fastest)\n"
-                          "4 = 2\xc3\x97""2 grid, basic penumbra\n"
-                          "9 = 3\xc3\x97""3 grid, moderate softness\n"
-                          "16 = 4\xc3\x97""4 grid, smooth penumbras (recommended)\n"
-                          "64 = 8\xc3\x97""8 grid, very smooth (slower)\n\n"
-                          "Render time scales linearly with this value.\n"
-                          "Larger light surfaces naturally produce wider penumbras.");
+    DD::Image::Tooltip(f, "Stochastic: shadow rays per shading point, spread over the light in a "
+                          "jittered grid. 1 = noisy (let ScanlineRender2 camera samples clean it "
+                          "up), 16 = smooth preview, 64 = final quality.\n\n"
+                          "Grid: number of sub-lights (rounded up to a square grid). Render time "
+                          "scales linearly with it.\n\n"
+                          "Either way, shadow softness comes from the light's Width and Height; "
+                          "samples only control smoothness.");
     KnobDefinesGeometry(f);
 
     DD::Image::Tab_knob(f, "USD");
     DD::Image::String_knob(f, &_primPath, "usd_prim_path", "Prim Path");
-    DD::Image::Tooltip(f, "USD stage path for the light prim(s).\n"
-                          "When Shadow Samples > 1, sub-lights are created as children\n"
-                          "of this path (e.g. /Lights/AreaLight/sub_0_0).");
+    DD::Image::Tooltip(f, "USD stage path for the light prim.\n"
+                          "Stochastic writes one RectLight here. Grid with more than one sample\n"
+                          "writes DiskLight children (e.g. /Lights/AreaLight/sub_0_0).");
     KnobDefinesGeometry(f);
 
     DD::Image::Tab_knob(f, "About");
-    DD::Image::Text_knob(f, "<b><font size='5'>AreaLight</font></b>");
-    DD::Image::SetFlags(f, DD::Image::Knob::STARTLINE);
-    DD::Image::Text_knob(f, "<font color='#888'>Soft shadow area light for ScanlineRender2</font>");
-    DD::Image::SetFlags(f, DD::Image::Knob::STARTLINE);
-    DD::Image::Text_knob(f, " ");
-    DD::Image::SetFlags(f, DD::Image::Knob::STARTLINE);
-    DD::Image::Text_knob(f, "v1.0");
-    DD::Image::SetFlags(f, DD::Image::Knob::STARTLINE);
-    DD::Image::Text_knob(f, "Created by <b>Marten Blumen</b>");
-    DD::Image::SetFlags(f, DD::Image::Knob::STARTLINE);
-    DD::Image::Text_knob(f, " ");
-    DD::Image::SetFlags(f, DD::Image::Knob::STARTLINE);
-    DD::Image::Text_knob(f, "<b>How it works</b>");
-    DD::Image::SetFlags(f, DD::Image::Knob::STARTLINE);
-    DD::Image::Text_knob(f, "ScanlineRender2 only supports hard shadows from its");
-    DD::Image::SetFlags(f, DD::Image::Knob::STARTLINE);
-    DD::Image::Text_knob(f, "built-in light shaders. This node works around that by");
-    DD::Image::SetFlags(f, DD::Image::Knob::STARTLINE);
-    DD::Image::Text_knob(f, "emitting a grid of DiskLightPrims spread across the light");
-    DD::Image::SetFlags(f, DD::Image::Knob::STARTLINE);
-    DD::Image::Text_knob(f, "surface. Each sub-light casts its own hard shadow from a");
-    DD::Image::SetFlags(f, DD::Image::Knob::STARTLINE);
-    DD::Image::Text_knob(f, "slightly different position, and the overlapping penumbras");
-    DD::Image::SetFlags(f, DD::Image::Knob::STARTLINE);
-    DD::Image::Text_knob(f, "blend into a smooth gradient.");
-    DD::Image::SetFlags(f, DD::Image::Knob::STARTLINE);
-    DD::Image::Text_knob(f, " ");
-    DD::Image::SetFlags(f, DD::Image::Knob::STARTLINE);
-    DD::Image::Text_knob(f, "<b>Tips</b>");
-    DD::Image::SetFlags(f, DD::Image::Knob::STARTLINE);
-    DD::Image::Text_knob(f, "\xe2\x80\xa2 Start with Shadow Samples = 16 for quality/speed balance");
-    DD::Image::SetFlags(f, DD::Image::Knob::STARTLINE);
-    DD::Image::Text_knob(f, "\xe2\x80\xa2 Shadow softness comes from light size (Width/Height)");
-    DD::Image::SetFlags(f, DD::Image::Knob::STARTLINE);
-    DD::Image::Text_knob(f, "\xe2\x80\xa2 Shadow Samples controls smoothness, not penumbra width");
-    DD::Image::SetFlags(f, DD::Image::Knob::STARTLINE);
-    DD::Image::Text_knob(f, "\xe2\x80\xa2 Increase to 64 for close-ups or final renders");
-    DD::Image::SetFlags(f, DD::Image::Knob::STARTLINE);
-    DD::Image::Text_knob(f, "\xe2\x80\xa2 Keep at 1 during look-dev for fast iteration");
-    DD::Image::SetFlags(f, DD::Image::Knob::STARTLINE);
-    DD::Image::Text_knob(f, "\xe2\x80\xa2 Total illumination is conserved regardless of sample count");
-    DD::Image::SetFlags(f, DD::Image::Knob::STARTLINE);
+    static const char* const kAbout[] = {
+        "<b><font size='5'>AreaLight</font></b>",
+        "<font color='#888'>Soft shadow area light for ScanlineRender2</font>",
+        " ",
+        "SoftBox v" SOFTBOX_VERSION,
+        "Created by <b>Marten Blumen</b>",
+        " ",
+        "<b>How it works</b>",
+        "Nuke's own lights send one shadow ray to the light's centre, so",
+        "ScanlineRender2 shadows are hard. In Stochastic mode this node writes",
+        "a USD RectLight, and SoftBox's slrRectLight shader sends each shadow",
+        "ray to a random point on the light's surface instead. The penumbra",
+        "comes out as a smooth, physically based gradient, the way a path",
+        "tracer renders it, from one light.",
+        " ",
+        "Grid mode keeps the v1.0 method: a grid of hard-shadow DiskLights",
+        "whose overlapping shadows fake the penumbra.",
+        " ",
+        "<b>Tips</b>",
+        "- Shadow softness comes from the light's Width and Height",
+        "- Shadow Samples controls smoothness, not penumbra width",
+        "- 16 samples for previews, 64 for finals and close-ups",
+        "- At low samples, raising the render's camera samples also",
+        "  smooths the shadow (and anti-aliases everything else)",
+        "- Stochastic is faster than Grid for the same sample count",
+        nullptr};
+    for (const char* const* line = kAbout; *line; ++line) {
+        DD::Image::Text_knob(f, *line);
+        DD::Image::SetFlags(f, DD::Image::Knob::STARTLINE);
+    }
 }
 
 int GeoAreaLightOp::knob_changed(DD::Image::Knob* k)
@@ -237,6 +233,21 @@ void GeoAreaLightOp::Engine::writeLightPrims(usg::GeomSceneContext& context)
         if (t && t[0]) primPathStr = t;
     }
 
+    const int shadowMode = [&]() -> int {
+        if (DD::Image::Knob* k = firstOp()->knob("shadow_mode"))
+            return static_cast<int>(k->get_value());
+        return Defaults::SHADOW_MODE;
+    }();
+
+    if (shadowMode == 0) {
+        auto slash = primPathStr.rfind('/');
+        if (slash != std::string::npos && slash > 0)
+            _editLayer->defineScopeParents(usg::Path(primPathStr.substr(0, slash)));
+        writeRectLight(context, usg::Path(primPathStr), width, height, intensity, exposure,
+                       norm, color, xform, std::max(1, shadowSamples));
+        return;
+    }
+
     const float radius = std::max(width, height) * 0.5f;
 
     // =====================================================================
@@ -331,4 +342,50 @@ void GeoAreaLightOp::Engine::writeLightPrims(usg::GeomSceneContext& context)
             diskLight.setAttr(usg::Token("xformOp:transform"), subXform);
         }
     }
+}
+
+void GeoAreaLightOp::Engine::writeRectLight(usg::GeomSceneContext& context, const usg::Path& path,
+                                            float width, float height, float intensity, float exposure,
+                                            bool normalize, const fdk::Vec3f& color,
+                                            const fdk::Mat4d& xform, int shadowSamples)
+{
+    if (context.defineGeometry()) {
+        usg::lux::RectLightPrim rect = usg::lux::RectLightPrim::defineInLayer(_editLayer, path);
+        if (!rect.validate()) return;
+
+        rect.createWidthAttr();
+        rect.createHeightAttr();
+        rect.createColorAttr();
+        rect.createIntensityAttr();
+        rect.createExposureAttr();
+        rect.createNormalizeAttr();
+
+        usg::lux::ShadowAPI shadowApi(rect);
+        shadowApi.apply();
+        shadowApi.createShadowEnableAttr();
+
+        rect.createIntrinsicAttr(usg::Token("softbox:shadowSamples"), usg::Value::Int, usg::TimeVariability::Varying);
+
+        rect.createXformOpOrderAttr();
+        rect.createIntrinsicAttr(usg::Token("xformOp:transform"), usg::Value::Matrix4d, usg::TimeVariability::Varying);
+        usg::TokenArray xformOrder;
+        xformOrder.push_back(usg::Token("xformOp:transform"));
+        rect.setXformOpOrder(xformOrder);
+    }
+
+    usg::lux::RectLightPrim rect = usg::lux::RectLightPrim::defineInLayer(_editLayer, path);
+    if (!rect.validate()) return;
+
+    rect.setWidth(width);
+    rect.setHeight(height);
+    rect.setColor(color);
+    rect.setIntensity(intensity);
+    rect.setExposure(exposure);
+    rect.setNormalize(normalize);
+
+    usg::lux::ShadowAPI shadowApi(rect);
+    shadowApi.setShadowEnable(true);
+
+    rect.setAttr(usg::Token("softbox:shadowSamples"), int32_t(shadowSamples));
+    rect.setAttr(usg::Token("xformOp:transform"), xform);
 }

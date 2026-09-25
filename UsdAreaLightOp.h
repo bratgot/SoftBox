@@ -17,6 +17,7 @@ class Node;
 #include <usg/geom/Layer.h>
 #include <usg/geom/Path.h>
 #include <usg/lux/DiskLightPrim.h>
+#include <usg/lux/RectLightPrim.h>
 #include <usg/lux/ShadowAPI.h>
 #include <usg/geom/XformCommonAPI.h>
 #include <usg/base/Token.h>
@@ -39,6 +40,7 @@ namespace Defaults {
     constexpr float  COLOR[3]          = {1.f, 1.f, 1.f};
     constexpr bool   NORMALIZE         = true;
     constexpr int    SHADOW_SAMPLES    = 1;
+    constexpr int    SHADOW_MODE       = 0;   // 0 = stochastic RectLight, 1 = grid
 }
 
 class GeoAreaLightOp : public DD::Image::GeomOp
@@ -52,6 +54,10 @@ public:
         void processScenegraph(usg::GeomSceneContext& context) override;
     private:
         void writeLightPrims(usg::GeomSceneContext& context);
+        void writeRectLight(usg::GeomSceneContext& context, const usg::Path& path,
+                            float width, float height, float intensity, float exposure,
+                            bool normalize, const fdk::Vec3f& color,
+                            const fdk::Mat4d& xform, int shadowSamples);
         usg::GeomStateTarget _defineTarget;
         usg::GeomStateTarget _modifyTarget;
     };
@@ -63,9 +69,11 @@ public:
 
     const char* Class()     const override { return CLASS; }
     const char* node_help() const override {
-        return "Area light with soft shadow support for ScanlineRender2.\n\n"
-               "Emits light from a rectangular surface using one or more USD DiskLightPrims. "
-               "Increase Shadow Samples to produce smooth penumbras from a grid of sub-lights.";
+        return "Area light with soft shadows for ScanlineRender2.\n\n"
+               "Stochastic mode (default) writes a USD RectLight whose shadow rays are sampled "
+               "across the light surface by SoftBox's slrRectLight shader, giving smooth, "
+               "physically based penumbras. Grid mode uses the older grid of hard-shadow "
+               "DiskLights.";
     }
 
     int minimum_inputs() const override { return 1; }
@@ -91,6 +99,7 @@ public:
 
     // Shadow
     int    _shadowSamples = Defaults::SHADOW_SAMPLES;
+    int    _shadowMode    = Defaults::SHADOW_MODE;
 
     // USD
     std::string _primPath = "/Lights/AreaLight";
