@@ -4,7 +4,7 @@
 
 By Marten Blumen
 
-![Nuke 17](https://img.shields.io/badge/Nuke-17.0%2B-yellow) ![License](https://img.shields.io/badge/license-MIT-blue) ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
+![Nuke 17](https://img.shields.io/badge/Nuke-17.0%20%7C%2017.1-yellow) ![License](https://img.shields.io/badge/license-MIT-blue) ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
 
 ---
 
@@ -23,35 +23,74 @@ ScanlineRender2's built-in lights only cast hard shadows. SoftBox produces smoot
 
 ### From Release
 
-1. Download `AreaLight.dll` from [Releases](../../releases)
-2. Copy `AreaLight.dll` and `menu.py` to `~/.nuke/`
-3. Restart Nuke 17
-4. Find **AreaLight** under **3D > Lights** in the toolbar
+1. Download `SoftBox-v1.1-Nuke17-win64.zip` from [Releases](https://github.com/bratgot/SoftBox/releases/latest)
+2. Unzip it into your `.nuke` folder so you get `C:\Users\<you>\.nuke\SoftBox\`
+3. Add this line to `~/.nuke/init.py` (create the file if needed):
+   ```python
+   nuke.pluginAddPath('./SoftBox')
+   ```
+4. Restart Nuke 17.0 or 17.1 and find **AreaLight** under **3D > Lights**
+
+The plugin is tied to one Nuke minor version (the DDImage ABI changes between
+17.0 and 17.1), so the zip carries a build for each, and SoftBox loads the one
+matching the running Nuke:
+
+```
+~/.nuke/
+|-- init.py                  # nuke.pluginAddPath('./SoftBox')
+`-- SoftBox/
+    |-- init.py              # adds the <major.minor>/ folder matching the running Nuke
+    |-- menu.py              # 3D > Lights > AreaLight
+    |-- README.txt
+    |-- LICENSE
+    |-- 17.0/AreaLight.dll
+    `-- 17.1/AreaLight.dll
+```
+
+Upgrading from v1.0? Delete the old `~/.nuke/AreaLight.dll` and the
+AreaLight lines in `~/.nuke/menu.py`. A DLL loose in `~/.nuke/` is loaded by
+every Nuke version.
 
 ### Build From Source
 
-Requires **Visual Studio 2022** and **CMake 3.20+**.
+Requires the **Visual Studio 2019** toolset (v142, the toolchain Foundry builds
+Nuke 14.1-17.1 with) and **CMake 3.20+**. Point `NUKE_DIR` at the Nuke you are
+building for; the install subfolder is taken from that NDK's version.
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/SoftBox.git
+git clone https://github.com/bratgot/SoftBox.git
 cd SoftBox
-cmake -S . -B build --preset vs2022
+
+# Nuke 17.1
+cmake -S . -B build --preset vs2019 -DNUKE_DIR="C:/Program Files/Nuke17.1v1"
 cmake --build build --config Release
+cmake --install build --config Release
+
+# Nuke 17.0 (separate build directory)
+cmake -S . -B build-17.0 -G "Visual Studio 16 2019" -A x64 -DNUKE_DIR="C:/Program Files/Nuke17.0v4"
+cmake --build build-17.0 --config Release
+cmake --install build-17.0 --config Release
 ```
 
-The plugin is built to `build/plugin/AreaLight.dll`. To install:
+The DLL is built to `build/plugin/Release/AreaLight.dll`. `cmake --install`
+installs to `~/.nuke` by default (override with `--prefix`) and adds the
+registration block to `~/.nuke/init.py` only if it is not already there.
+
+If a build directory was configured before this layout existed, reconfigure it
+with `cmake --fresh ...` so the install prefix is reset.
+
+### Packaging a Release
+
+After building every Nuke version you want to ship:
 
 ```bash
-cmake --install build
+cmake -P cmake/package.cmake
 ```
 
-This copies `AreaLight.dll` and `menu.py` to `~/.nuke/`.
-
-If Nuke is installed in a non-standard location:
-
-```bash
-cmake -S . -B build --preset vs2022 -DNUKE_DIR="D:/Apps/Nuke17.0v1"
-```
+This stages `dist/SoftBox-v<version>/SoftBox/` from every `build*/` directory
+and zips it as `dist/SoftBox-v<version>-Nuke17-win64.zip`, ready for GitHub
+Releases or Nukepedia. The version comes from `project(... VERSION ...)` in
+`CMakeLists.txt`. `dist/` is git-ignored.
 
 ## Usage
 
@@ -89,8 +128,13 @@ SoftBox/
 ├── UsdAreaLightOp.cpp    # Plugin implementation
 ├── UsdAreaLightOp.h      # Plugin header
 ├── CMakeLists.txt        # Build configuration
-├── CMakePresets.json     # VS2022 preset
-├── menu.py               # Nuke menu installer
+├── CMakePresets.json     # VS2019 / VS2022 presets
+├── cmake/
+│   ├── install_user_init.cmake  # one-time ~/.nuke/init.py registration
+│   └── package.cmake     # builds the dist/ zip for release
+├── dist_readme.txt       # README.txt shipped inside the zip
+├── init.py               # adds the build matching the running Nuke
+├── menu.py               # 3D > Lights toolbar entry
 ├── LICENSE               # MIT license
 └── README.md             # This file
 ```

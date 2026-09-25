@@ -2,6 +2,13 @@
     "version": 3,
     "configurePresets": [
         {
+            "name": "vs2019",
+            "displayName": "Visual Studio 2019 x64 (Nuke 14.1-17.1 toolchain)",
+            "generator": "Visual Studio 16 2019",
+            "architecture": "x64",
+            "binaryDir": "${sourceDir}/build"
+        },
+        {
             "name": "vs2022",
             "displayName": "Visual Studio 2022 x64",
             "generator": "Visual Studio 17 2022",

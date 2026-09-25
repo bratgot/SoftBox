@@ -227,7 +227,7 @@ void GeoAreaLightOp::Engine::writeLightPrims(usg::GeomSceneContext& context)
         color.z = static_cast<float>(ck->get_value(2));
     }
 
-    // Read full transform from Axis_knob — includes translate, rotate, scale, pivot, etc.
+    // Read full transform from Axis_knob -- includes translate, rotate, scale, pivot, etc.
     const GeoAreaLightOp* op = static_cast<const GeoAreaLightOp*>(firstOp());
     fdk::Mat4d xform = op->_xform;
 
